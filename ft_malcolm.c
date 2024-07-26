@@ -89,3 +89,44 @@ void send_arp_reply(int sockfd, const char *src_ip, const char *src_mac, const c
         printf("ARP reply sent.\n");
     }
 }
+
+int main(int argc, char *argv[]) {
+    if (argc != 5) {
+        fprintf(stderr, "Usage: %s <source IP> <source MAC> <target IP> <target MAC>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    if (!validate_ip(argv[1])) {
+        fprintf(stderr, "Invalid source IP address: %s\n", argv[1]);
+        return EXIT_FAILURE;
+    }
+
+    if (!validate_mac(argv[2])) {
+        fprintf(stderr, "Invalid source MAC address: %s\n", argv[2]);
+        return EXIT_FAILURE;
+    }
+
+    if (!validate_ip(argv[3])) {
+        fprintf(stderr, "Invalid target IP address: %s\n", argv[3]);
+        return EXIT_FAILURE;
+    }
+
+    if (!validate_mac(argv[4])) {
+        fprintf(stderr, "Invalid target MAC address: %s\n", argv[4]);
+        return EXIT_FAILURE;
+    }
+
+    int sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ARP));
+    if (sockfd == -1) {
+        handle_error("socket");
+    }
+
+    printf("Capturing ARP packets...\n");
+    capture_arp_packets(sockfd);
+
+    // Enviar resposta ARP depois de capturar a solicitação ARP
+    send_arp_reply(sockfd, argv[1], argv[2], argv[3], argv[4]);
+
+    close(sockfd);
+    return EXIT_SUCCESS;
+}

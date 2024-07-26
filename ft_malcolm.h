@@ -13,6 +13,9 @@
 #include <ifaddrs.h>
 #include <errno.h>
 #include <net/if_arp.h> 
+#include <ctype.h>
+#include <linux/if_packet.h>
+#include <net/ethernet.h>
 
 void handle_error(const char *msg);
 int validate_ip(const char *ip);

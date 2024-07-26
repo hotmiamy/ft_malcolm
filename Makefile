@@ -1,19 +1,18 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -Werror
+CC = clang
+CFLAGS = -Wall -Wextra -Werror -g3
 SRC = ft_malcolm.c
-OBJ = $(SRC:.c=.o)
 NAME = ft_malcolm
 
 all: $(NAME)
 
 $(NAME): $(OBJ)
-    $(CC) $(CFLAGS) -o $(NAME) $(OBJ)
+	$(CC) $(CFLAGS) -o $(NAME) $(SRC)
 
 clean:
-    rm -f $(OBJ)
+	rm -f $(OBJ)
 
 fclean: clean
-    rm -f $(NAME)
+	rm -f $(NAME)
 
 re: fclean all
 
