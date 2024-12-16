@@ -35,7 +35,6 @@ void capture_arp_packets(int sockfd) {
         ssize_t num_bytes = recvfrom(sockfd, buffer, ETH_FRAME_LEN, 0, (struct sockaddr *)&src_addr, &src_addr_len);
         if (num_bytes == -1) {
             perror("recvfrom");
-            continue;
         }
 
         struct ethhdr *eth_header = (struct ethhdr *)buffer;
@@ -43,8 +42,16 @@ void capture_arp_packets(int sockfd) {
             struct arp_header *arp = (struct arp_header *)(buffer + sizeof(struct ethhdr));
             if (ntohs(arp->oper) == ARPOP_REQUEST) {
                 // Process ARP request
-                printf("ARP request captured: who has %d.%d.%d.%d?\n",
-                       arp->tpa[0], arp->tpa[1], arp->tpa[2], arp->tpa[3]);
+                /* printf("An ARP request has been broadcast.\n");
+                printf("ARP request: who has %d.%d.%d.%d? Tell %d.%d.%d.%d\n",
+                       arp->tpa[0], arp->tpa[1], arp->tpa[2], arp->tpa[3],
+                       arp->spa[0], arp->spa[1], arp->spa[2], arp->spa[3]); */
+            }
+            if (ntohs(arp->oper) == ARPOP_REPLY) {
+                printf("Mac address of request: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                        arp->sha[0], arp->sha[1], arp->sha[2], arp->sha[3], arp->sha[4], arp->sha[5]);
+                printf("IP address of request: %d.%d.%d.%d\n", 
+                        arp->spa[0], arp->spa[1], arp->spa[2], arp->spa[3]);
             }
         }
     }
