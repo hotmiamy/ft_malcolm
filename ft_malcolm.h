@@ -17,6 +17,8 @@
 #include <linux/if_packet.h>
 #include <net/ethernet.h>
 
+#define BUFF_SIZE 42
+
 void handle_error(const char *msg);
 int validate_ip(const char *ip);
 int validate_mac(const char *mac);

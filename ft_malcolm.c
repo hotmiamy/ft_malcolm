@@ -29,10 +29,10 @@ int validate_mac(const char *mac) {
 void capture_arp_packets(int sockfd) {
     struct sockaddr_storage src_addr;
     socklen_t src_addr_len = sizeof(src_addr);
-    uint8_t buffer[ETH_FRAME_LEN];
+    uint8_t buffer[BUFF_SIZE];
 
     while (1) {
-        ssize_t num_bytes = recvfrom(sockfd, buffer, ETH_FRAME_LEN, 0, (struct sockaddr *)&src_addr, &src_addr_len);
+        ssize_t num_bytes = recvfrom(sockfd, buffer, BUFF_SIZE, 0, NULL, NULL);
         if (num_bytes == -1) {
             perror("recvfrom");
         }
@@ -97,7 +97,34 @@ void send_arp_reply(int sockfd, const char *src_ip, const char *src_mac, const c
     }
 }
 
+char *find_interface() {
+    struct ifaddrs *ifaddr, *ifa;
+    char *interface = NULL;
+
+    if (getifaddrs(&ifaddr) == -1) {
+        handle_error("getifaddrs");
+    }
+
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL)
+            continue;
+
+        if (ifa->ifa_addr->sa_family == AF_PACKET) {
+            if ((ifa->ifa_flags & IFF_UP) && (ifa->ifa_flags & IFF_RUNNING)){
+                if (!(ifa->ifa_flags & IFF_LOOPBACK))
+                    interface = ifa->ifa_name;
+                    break;
+            }
+        }
+    }
+
+    freeifaddrs(ifaddr);
+    return interface;
+}
+
 int main(int argc, char *argv[]) {
+    char *interface = NULL;
+
     if (argc != 5) {
         fprintf(stderr, "Usage: %s <source IP> <source MAC> <target IP> <target MAC>\n", argv[0]);
         return EXIT_FAILURE;
@@ -123,10 +150,20 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    int sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ARP));
+    interface = find_interface();
+
+    if (!interface) {
+        fprintf(stderr, "No interface found.\n");
+        return EXIT_FAILURE;
+    }
+
+    /* int sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (sockfd == -1) {
         handle_error("socket");
     }
+
+
+    printf("Valid interface found: %s\n", interface);
 
     printf("Capturing ARP packets...\n");
     capture_arp_packets(sockfd);
@@ -134,6 +171,6 @@ int main(int argc, char *argv[]) {
     // Enviar resposta ARP depois de capturar a solicitação ARP
     send_arp_reply(sockfd, argv[1], argv[2], argv[3], argv[4]);
 
-    close(sockfd);
+    close(sockfd); */
     return EXIT_SUCCESS;
 }
