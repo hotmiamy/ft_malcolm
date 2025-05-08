@@ -26,75 +26,90 @@ int validate_mac(const char *mac) {
     return (i == 17 && s == 5);
 }
 
-void capture_arp_packets(int sockfd) {
-    struct sockaddr_storage src_addr;
-    socklen_t src_addr_len = sizeof(src_addr);
-    uint8_t buffer[BUFF_SIZE];
+void capture_arp_packets(int sockfd, char *target_ip, char *target_mac) {
+    unsigned char buffer[ETH_FRAME_LEN];
+    struct sockaddr_ll sa;
+    socklen_t sa_len = sizeof(sa);
 
-    while (1) {
-        ssize_t num_bytes = recvfrom(sockfd, buffer, BUFF_SIZE, 0, NULL, NULL);
-        if (num_bytes == -1) {
+    while (1) 
+    { 
+        int len = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)&sa, &sa_len);
+        if (len < 0)
+        {
             perror("recvfrom");
+            continue;
         }
 
-        struct ethhdr *eth_header = (struct ethhdr *)buffer;
-        if (ntohs(eth_header->h_proto) == ETH_P_ARP) {
-            struct arp_header *arp = (struct arp_header *)(buffer + sizeof(struct ethhdr));
-            if (ntohs(arp->oper) == ARPOP_REQUEST) {
-                // Process ARP request
-                /* printf("An ARP request has been broadcast.\n");
-                printf("ARP request: who has %d.%d.%d.%d? Tell %d.%d.%d.%d\n",
-                       arp->tpa[0], arp->tpa[1], arp->tpa[2], arp->tpa[3],
-                       arp->spa[0], arp->spa[1], arp->spa[2], arp->spa[3]); */
-            }
-            if (ntohs(arp->oper) == ARPOP_REPLY) {
-                printf("Mac address of request: %02x:%02x:%02x:%02x:%02x:%02x\n",
-                        arp->sha[0], arp->sha[1], arp->sha[2], arp->sha[3], arp->sha[4], arp->sha[5]);
-                printf("IP address of request: %d.%d.%d.%d\n", 
-                        arp->spa[0], arp->spa[1], arp->spa[2], arp->spa[3]);
-            }
+        struct ether_header *eth_header = (struct ether_header *)buffer;
+        if (ntohs(eth_header->ether_type) != ETHERTYPE_ARP)
+            continue;
+        
+        struct ether_arp *arp_pkt = (struct ether_arp *)(buffer + sizeof(struct ether_header));
+        if (ntohs(arp_pkt->ea_hdr.ar_op) == ARPOP_REQUEST) {
+            break;
+        }
+
+        char sender_ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, arp_pkt->arp_spa, sender_ip, sizeof(sender_ip));
+
+        char target_ip_in_packet[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, arp_pkt->arp_tpa, target_ip_in_packet, sizeof(target_ip_in_packet));
+
+        if(strcmp(target_ip, sender_ip) == 0){
+            printf("Detected ARP request from target %s (%s)\n", target_ip, target_mac);
+            
         }
     }
 }
 
-void send_arp_reply(int sockfd, const char *src_ip, const char *src_mac, const char *target_ip, const char *target_mac) {
-    uint8_t buffer[ETH_FRAME_LEN];
-    struct ethhdr *eth_header = (struct ethhdr *)buffer;
-    struct arp_header *arp = (struct arp_header *)(buffer + sizeof(struct ethhdr));
+void send_arp_reply(int sockfd, const char *src_ip, const char *src_mac, const char *target_ip, const char *target_mac, const char *iface_name) {
+    struct arp_packet packet;
+    struct sockaddr_ll sa;
+    int ifindex;
 
-    // Preencher o cabeçalho Ethernet
-    sscanf(target_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-           &eth_header->h_dest[0], &eth_header->h_dest[1], &eth_header->h_dest[2],
-           &eth_header->h_dest[3], &eth_header->h_dest[4], &eth_header->h_dest[5]);
-    sscanf(src_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-           &eth_header->h_source[0], &eth_header->h_source[1], &eth_header->h_source[2],
-           &eth_header->h_source[3], &eth_header->h_source[4], &eth_header->h_source[5]);
-    eth_header->h_proto = htons(ETH_P_ARP);
-
-    // Preencher o cabeçalho ARP
-    arp->htype = htons(ARPHRD_ETHER);
-    arp->ptype = htons(ETH_P_IP);
-    arp->hlen = 6;
-    arp->plen = 4;
-    arp->oper = htons(ARPOP_REPLY);
-    memcpy(arp->sha, eth_header->h_source, 6);
-    inet_pton(AF_INET, src_ip, arp->spa);
-    sscanf(target_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-           &arp->tha[0], &arp->tha[1], &arp->tha[2], &arp->tha[3], &arp->tha[4], &arp->tha[5]);
-    inet_pton(AF_INET, target_ip, arp->tpa);
-
-    // Enviar o pacote ARP
-    struct sockaddr_ll device;
-    memset(&device, 0, sizeof(device));
-    device.sll_ifindex = if_nametoindex("eth0");
-    device.sll_halen = ETH_ALEN;
-    memcpy(device.sll_addr, eth_header->h_dest, 6);
-
-    if (sendto(sockfd, buffer, ETH_FRAME_LEN, 0, (struct sockaddr *)&device, sizeof(device)) == -1) {
-        perror("sendto");
-    } else {
-        printf("ARP reply sent.\n");
+    ifindex = if_nametoindex(iface_name);
+    if (ifindex == 0){
+        perror("if_nametoindex");
+        return;
     }
+
+    memset(&sa, 0, sizeof(sa));
+    sa.sll_family = AF_PACKET;
+    sa.sll_ifindex = ifindex;
+    sa.sll_halen = ETH_ALEN;
+
+    unsigned char src_mac_bytes[6], target_mac_bytes[6];\
+    sscanf(src_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+            &src_mac_bytes[0], &src_mac_bytes[1], &src_mac_bytes[2],
+            &src_mac_bytes[3], &src_mac_bytes[4], &src_mac_bytes[5]);
+
+    sscanf(target_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+            &target_mac_bytes[0], &target_mac_bytes[1], &target_mac_bytes[2],
+            &target_mac_bytes[3], &target_mac_bytes[4], &target_mac_bytes[5]);
+    
+    // fill ethernet header
+    memcpy(packet.ether_header.ether_dhost, target_mac_bytes, ETH_ALEN);
+    memcpy(packet.ether_header.ether_shost, src_mac_bytes, ETH_ALEN);
+    packet.ether_header.ether_type = htons(ETHERTYPE_ARP);
+
+    // fill arp packet
+    packet.arp.ea_hdr.ar_hrd = htons(ARPHRD_ETHER);
+    packet.arp.ea_hdr.ar_pro = htons(ETHERTYPE_IP);
+    packet.arp.ea_hdr.ar_hln = ETH_ALEN;
+    packet.arp.ea_hdr.ar_pln = 4;
+    packet.arp.ea_hdr.ar_op = htons(ARPOP_REPLY);
+
+    // Fill MAC and IP source
+    memcpy(packet.arp.arp_sha, src_mac_bytes, ETH_ALEN);
+    inet_pton(AF_INET, src_ip, packet.arp.arp_spa);
+
+    // Fill MAC and IP Target/destination
+    memcpy(packet.arp.arp_tha, target_mac_bytes, ETH_ALEN);
+    inet_pton(AF_INET, target_ip, packet.arp.arp_tpa);
+
+    // send packet
+    if (sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *)&sa, sizeof(sa)) < 0)
+        perror("sendto");
 }
 
 char *find_interface() {
@@ -111,9 +126,10 @@ char *find_interface() {
 
         if (ifa->ifa_addr->sa_family == AF_PACKET) {
             if ((ifa->ifa_flags & IFF_UP) && (ifa->ifa_flags & IFF_RUNNING)){
-                if (!(ifa->ifa_flags & IFF_LOOPBACK))
+                if (!(ifa->ifa_flags & IFF_LOOPBACK)){
                     interface = ifa->ifa_name;
                     break;
+                }
             }
         }
     }
@@ -157,7 +173,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    /* int sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+    int sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (sockfd == -1) {
         handle_error("socket");
     }
@@ -166,11 +182,11 @@ int main(int argc, char *argv[]) {
     printf("Valid interface found: %s\n", interface);
 
     printf("Capturing ARP packets...\n");
-    capture_arp_packets(sockfd);
+    capture_arp_packets(sockfd, argv[3], argv[4]);
 
     // Enviar resposta ARP depois de capturar a solicitação ARP
-    send_arp_reply(sockfd, argv[1], argv[2], argv[3], argv[4]);
+    send_arp_reply(sockfd, argv[1], argv[2], argv[3], argv[4], interface);
 
-    close(sockfd); */
+    close(sockfd);
     return EXIT_SUCCESS;
 }

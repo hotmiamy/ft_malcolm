@@ -4,36 +4,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/if_ether.h>
-#include <sys/types.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <ifaddrs.h>
-#include <errno.h>
-#include <net/if_arp.h> 
-#include <ctype.h>
-#include <linux/if_packet.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netinet/if_ether.h>
 #include <net/ethernet.h>
+#include <netpacket/packet.h>
+#include <sys/ioctl.h>
+#include <netdb.h>
+#include <ifaddrs.h>
 
+#define ARPOP_REQUEST 1    // Requisição ARP
+#define ARPOP_REPLY 2      // Resposta ARP
+#define ARPHRD_ETHER 1     // Tipo Ethernet
 #define BUFF_SIZE 42
 
 void handle_error(const char *msg);
 int validate_ip(const char *ip);
 int validate_mac(const char *mac);
-void capture_arp_packets(int sockfd);
+void capture_arp_packets(int sockfd, char *target_ip, char *target_mac);
 
-struct arp_header {
-    uint16_t htype;    // Hardware type
-    uint16_t ptype;    // Protocol type
-    uint8_t hlen;      // Hardware address length
-    uint8_t plen;      // Protocol address length
-    uint16_t oper;     // Operation (request or reply)
-    uint8_t sha[6];    // Sender hardware address (MAC)
-    uint8_t spa[4];    // Sender protocol address (IP)
-    uint8_t tha[6];    // Target hardware address (MAC)
-    uint8_t tpa[4];    // Target protocol address (IP)
+struct arp_packet {
+    struct ether_header ether_header;
+    struct ether_arp arp;
 };
 
 #endif

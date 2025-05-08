@@ -1,0 +1,29 @@
+{
+    "configurations": [
+        {
+            "name": "ft_malcolm",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/ft_malcolm",
+            "args": ["192.168.200.255", "08:00:27:d7:23:0c", "192.168.200.10", "08:00:27:fb:ec:f8"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "${workspaceFolder}/debug_sudo.sh",
+            "setupCommands": [
+                {
+                    "description": "Habilitar a reformatação automática para gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Definir Tipo de Desmontagem como Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}
