@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "ifaddrs.h": "c",
-        "unistd.h": "c"
-    }
-}

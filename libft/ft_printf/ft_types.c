@@ -34,7 +34,7 @@ int	ft_type_p(unsigned long ptr)
 		return (write(1, "(nil)", 5));
 	else if (ptr == 0 && IS_MACOS == 1)
 		return (write(1, "0x0", 3));
-	str = ft_base_converter(ptr, "0123456789abcdef");
+	str = ft_itoa_base_converter(ptr, "0123456789abcdef");
 	temp = str;
 	str = ft_strjoin("0x", temp);
 	free(temp);
@@ -67,9 +67,9 @@ int	ft_type_x(unsigned int nbr, char flag, char type)
 	if (nbr == 0)
 		return (write(1, "0", 1));
 	if (type == 'x')
-		str = ft_base_converter(nbr, HEX);
+		str = ft_itoa_base_converter(nbr, HEX);
 	else
-		str = ft_base_converter(nbr, UPPER_HEX);
+		str = ft_itoa_base_converter(nbr, UPPER_HEX);
 	if (ft_strchr("#", flag) && ft_strchr("xX", type) && flag != '\0')
 		str = flags(str, flag, type);
 	len_write = write(1, str, ft_strlen(str) * sizeof(char));

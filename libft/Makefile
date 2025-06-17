@@ -7,7 +7,7 @@ SRCFILES	=	ft_bzero.c ft_isalnum.c ft_isalpha.c ft_isascii.c ft_isdigit.c \
 				ft_atoi.c ft_calloc.c ft_strdup.c ft_substr.c ft_strjoin.c \
 				ft_strtrim.c ft_split.c ft_itoa.c ft_strmapi.c ft_striteri.c \
 				ft_putchar_fd.c ft_putendl_fd.c ft_putnbr_fd.c ft_putstr_fd.c \
-				ft_base_converter.c ft_uitoa.c ft_gnl.c ft_isxdigit.c
+				ft_itoa_base_converter.c ft_uitoa.c ft_gnl.c ft_isxdigit.c
 
 BONUS			 = $(addprefix ./lib/, $(BONUS_SRC))
 BONUS_SRC		 = ft_lstnew.c ft_lstdelone.c ft_lstclear.c ft_lstadd_front.c \
